@@ -14,7 +14,7 @@
 
         #gridContainer {
             display: grid;
-            grid-template-columns: repeat(30, 20px); /* Adjust based on grid size */
+            grid-template-columns: repeat(50, 20px); /* Adjust based on grid size */
             gap: 0px;
         }
 
@@ -74,7 +74,7 @@
         randomizeButton.addEventListener('click', function () {
             randomizeGrid();
         });
-        const gridSize = 30;
+        const gridSize = 50;
         let gridState = Array(gridSize).fill().map(() => Array(gridSize).fill(false)); // Initial grid state
 
         // Function to toggle cell state
@@ -216,7 +216,7 @@
                 addGridStateLayer(nextState, currentLayerIndex++);
                 
                 // Move the camera upwards to follow the growing structure
-                camera.position.y += timeStepHeight*1.03
+                camera.position.y += timeStepHeight*1.027
 
                 // Keep the camera looking at the center of the topmost layer of the grid
                 camera.lookAt(new THREE.Vector3(0, currentLayerIndex * timeStepHeight / 2, 0));
