@@ -54,6 +54,7 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         let isSimulationRunning = false;
+        let stochasticLife = false;
         const gridContainer = document.getElementById('gridContainer');
         const playButton = document.getElementById('playButton');
         const renderCanvas = document.getElementById('renderCanvas');
@@ -164,26 +165,49 @@
                 });
             }
 
-            function generateNextGridState(currentState) {
+            function generateNextGridState(currentState, stochasticLife) {
                 let nextState = currentState.map(row => row.slice()); // Create a deep copy of the current state
 
                 for (let i = 0; i < currentState.length; i++) {
                     for (let j = 0; j < currentState[i].length; j++) {
                         const isAlive = currentState[i][j];
                         const neighbors = countLiveNeighbors(currentState, i, j);
+                        let randomDeath = false;
+                        let randomLifeWithTwoNeighbors = false;
+                        let randomLifeWithOneNeighbor = false;
 
-                        if (isAlive) {
-                            // Rules 1 and 3
+                        // Check if stochastic effects are enabled
+                        if (stochasticLife) {
+                            randomDeath = Math.random() < 0.01; // 1% chance of random death
+                            randomLifeWithTwoNeighbors = Math.random() < 0.01; // 1% chance of a dead cell with two neighbors coming to life
+                            randomLifeWithOneNeighbor = Math.random() < 0.001; // 0.1% chance of a dead cell with one neighbor coming to life
+                        }
+
+                        if (randomDeath) {
+                            nextState[i][j] = false; // Cell dies due to random chance
+                        } else if (isAlive) {
+                            // Rules 1 and 3 with an added check for not randomly dying
                             nextState[i][j] = neighbors === 2 || neighbors === 3;
                         } else {
-                            // Rule 4
-                            nextState[i][j] = neighbors === 3;
+                            // Rule 4: A dead cell with exactly three live neighbors becomes alive
+                            if (neighbors === 3) {
+                                nextState[i][j] = true;
+                            } else if (neighbors === 2 && randomLifeWithTwoNeighbors) {
+                                // Additional rule: A dead cell with exactly two neighbors has a 1% chance of coming to life
+                                nextState[i][j] = true;
+                            } else if (neighbors === 1 && randomLifeWithOneNeighbor) {
+                                // Additional rule: A dead cell with exactly one neighbor has a 0.1% chance of coming to life
+                                nextState[i][j] = true;
+                            }
                         }
                     }
                 }
 
                 return nextState;
             }
+
+
+
 
             function countLiveNeighbors(state, x, y) {
                 let count = 0;
