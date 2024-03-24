@@ -216,7 +216,7 @@
                 addGridStateLayer(nextState, currentLayerIndex++);
                 
                 // Move the camera upwards to follow the growing structure
-                camera.position.y += timeStepHeight*1.05
+                camera.position.y += timeStepHeight*1.03
 
                 // Keep the camera looking at the center of the topmost layer of the grid
                 camera.lookAt(new THREE.Vector3(0, currentLayerIndex * timeStepHeight / 2, 0));
