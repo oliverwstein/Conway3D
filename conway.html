@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Conway's Game of Life in 3D</title>
+    <style>
+        body, html {
+            height: 120%;
+            margin: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        #gridContainer {
+            display: grid;
+            grid-template-columns: repeat(30, 20px); /* Adjust based on grid size */
+            gap: 0px;
+        }
+
+        .cell {
+            width: 20px;
+            height: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            cursor: pointer;
+        }
+
+        .cell.alive {
+            background-color: black;
+        }
+
+        #playButton {
+            margin: 20px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+
+        #renderCanvas {
+            width: 60vw; /* Adjust based on your needs */
+            height: 60vh; /* Adjust based on your needs */
+            display: none; /* Hidden initially */
+        }
+    </style>
+</head>
+<body>
+
+<div id="gridContainer"></div>
+<button id="playButton">Play</button>
+<button id="randomizeButton">Randomize</button>
+<canvas id="renderCanvas"></canvas>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        let isSimulationRunning = false;
+        const gridContainer = document.getElementById('gridContainer');
+        const playButton = document.getElementById('playButton');
+        const renderCanvas = document.getElementById('renderCanvas');
+        const randomizeButton = document.getElementById('randomizeButton'); // New button element
+
+        // Function to randomize the grid state
+        function randomizeGrid() {
+            for (let x = 0; x < gridSize; x++) {
+                for (let y = 0; y < gridSize; y++) {
+                    // Each cell has a 25% chance to be populated (true)
+                    gridState[x][y] = Math.random() < 0.25;
+                }
+            }
+            drawGrid(); // Redraw the grid to reflect the new random state
+        }
+
+        // Event listener for the randomize button
+        randomizeButton.addEventListener('click', function () {
+            randomizeGrid();
+        });
+        const gridSize = 30;
+        let gridState = Array(gridSize).fill().map(() => Array(gridSize).fill(false)); // Initial grid state
+
+        // Function to toggle cell state
+        function toggleCell(x, y) {
+            gridState[x][y] = !gridState[x][y];
+            drawGrid(); // Redraw the grid to reflect the state change
+        }
+
+        // Function to create and display the grid
+        function drawGrid() {
+            gridContainer.innerHTML = ''; // Clear existing grid
+            for (let x = 0; x < gridSize; x++) {
+                for (let y = 0; y < gridSize; y++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    if (gridState[x][y]) cell.classList.add('alive');
+                    cell.addEventListener('click', () => toggleCell(x, y));
+                    gridContainer.appendChild(cell);
+                }
+            }
+        }
+
+        drawGrid(); // Initialize the grid
+
+        // Function to initialize Three.js and start the 3D visualization
+        function initThreeJS() {
+            start3DVisualization(); // Now calls the function defined within the same scope
+        }
+
+        function start3DVisualization() {
+            var scene = new THREE.Scene();
+            var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(gridSize / 1.5, gridSize * 1.5, gridSize * 1.5);
+            camera.lookAt(new THREE.Vector3(0, 0, 0));
+            var renderer = new THREE.WebGLRenderer({canvas: document.getElementById('renderCanvas')});
+            
+            // Set the pixel ratio to match the device's display capabilities
+            renderer.setPixelRatio(window.devicePixelRatio); // Adjust the pixel ratio for high DPI screens
+            
+            // Set renderer size. You can adjust these values to match your desired size.
+            renderer.setSize(window.innerWidth, window.innerHeight); // Adjust to desired container dimensions
+
+            var ambientLight = new THREE.AmbientLight(0x404040);
+            scene.add(ambientLight);
+            var directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(1, 2, 1);
+            scene.add(directionalLight);
+
+            var gridStates = [gridState]; // Start with the initial state
+            var currentLayerIndex = 0; // Keep track of the current layer
+            var timeStepHeight = 1; // Vertical distance between each timestep
+            var delayBetweenSteps = 1000; // Delay in milliseconds (0.5 seconds)
+
+            function addGridStateLayer(gridState, layerIndex) {
+                var cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+                var cubeMaterial = new THREE.MeshLambertMaterial({color: 0x808080});
+                
+                gridState.forEach((row, i) => {
+                    row.forEach((cell, j) => {
+                        if (cell) { // If cell is "alive"
+                            var cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+                            cube.position.set(i - gridSize / 2, layerIndex * timeStepHeight, j - gridSize / 2);
+                            scene.add(cube);
+                        }
+                    });
+                });
+            }
+
+            function simulateTimeEvolution() {
+                gridStates.forEach((state, index) => {
+                    // Use setTimeout to stagger the addition of each layer
+                    setTimeout(() => addGridStateLayer(state, index), index * delayBetweenSteps);
+                });
+            }
+
+            function generateNextGridState(currentState) {
+                let nextState = currentState.map(row => row.slice()); // Create a deep copy of the current state
+
+                for (let i = 0; i < currentState.length; i++) {
+                    for (let j = 0; j < currentState[i].length; j++) {
+                        const isAlive = currentState[i][j];
+                        const neighbors = countLiveNeighbors(currentState, i, j);
+
+                        if (isAlive) {
+                            // Rules 1 and 3
+                            nextState[i][j] = neighbors === 2 || neighbors === 3;
+                        } else {
+                            // Rule 4
+                            nextState[i][j] = neighbors === 3;
+                        }
+                    }
+                }
+
+                return nextState;
+            }
+
+            function countLiveNeighbors(state, x, y) {
+                let count = 0;
+                // Iterate through all neighbors
+                for (let i = -1; i <= 1; i++) {
+                    for (let j = -1; j <= 1; j++) {
+                        if (i === 0 && j === 0) continue; // Skip the cell itself
+                        const nx = x + i;
+                        const ny = y + j;
+                        // Check bounds and count if neighbor is alive
+                        if (nx >= 0 && nx < state.length && ny >= 0 && ny < state[nx].length && state[nx][ny]) {
+                            count++;
+                        }
+                    }
+                }
+                return count;
+            }
+
+            simulateTimeEvolution();
+
+            function animate() {
+                if (!isSimulationRunning) {
+                    return; // Stop the animation loop when the simulation is paused
+                }
+                requestAnimationFrame(animate);
+                
+                // Generate the next grid state and add it as a new layer
+                let nextState = generateNextGridState(gridState);
+                gridState = nextState; // Update the current grid state
+                addGridStateLayer(nextState, currentLayerIndex++);
+                
+                // Move the camera upwards to follow the growing structure
+                camera.position.y += timeStepHeight*1.05
+
+                // Keep the camera looking at the center of the topmost layer of the grid
+                camera.lookAt(new THREE.Vector3(0, currentLayerIndex * timeStepHeight / 2, 0));
+
+                renderer.render(scene, camera);
+            }
+            animate();
+        }
+
+        // Function to start the simulation
+        function startSimulation() {
+            isSimulationRunning = true;
+            animate(); // Start or resume the animation
+        }
+
+        // Function to stop the simulation
+        function stopSimulation() {
+            isSimulationRunning = false; // This will cause animate() to stop calling itself
+        }
+
+
+        // Toggle Play/Edit button and switch between 2D setup and 3D visualization
+        playButton.addEventListener('click', function () {
+        if (playButton.textContent === 'Play') {
+            playButton.textContent = 'Edit';
+            gridContainer.style.display = 'none';
+            renderCanvas.style.display = 'block';
+            isSimulationRunning = true;
+            initThreeJS();
+        } else {
+            playButton.textContent = 'Play';
+            gridContainer.style.display = 'grid';
+            renderCanvas.style.display = 'none';
+            stopSimulation();
+            drawGrid();
+        }
+    });
+
+    });
+
+</script>
+
+</body>
+</html>
