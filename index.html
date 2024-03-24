@@ -128,19 +128,33 @@
             var timeStepHeight = 1; // Vertical distance between each timestep
             var delayBetweenSteps = 1000; // Delay in milliseconds (0.5 seconds)
 
+            var allLayers = [];
+
             function addGridStateLayer(gridState, layerIndex) {
                 var cubeGeometry = new THREE.BoxGeometry(1, 1, 1);
                 var cubeMaterial = new THREE.MeshLambertMaterial({color: 0x808080});
-                
+                var layerMeshes = []; // Keep track of all meshes in this layer
+
                 gridState.forEach((row, i) => {
                     row.forEach((cell, j) => {
                         if (cell) { // If cell is "alive"
                             var cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
                             cube.position.set(i - gridSize / 2, layerIndex * timeStepHeight, j - gridSize / 2);
                             scene.add(cube);
+                            layerMeshes.push(cube); // Add this mesh to the layer's list
                         }
                     });
                 });
+
+                // Add this layer's meshes to the global list
+                allLayers.push(layerMeshes);
+
+                // If the number of layers exceeds 200, remove the oldest
+                if (allLayers.length > 200) {
+                    allLayers.shift().forEach(mesh => {
+                        scene.remove(mesh); // Remove each mesh of the oldest layer from the scene
+                    });
+                }
             }
 
             function simulateTimeEvolution() {
@@ -209,6 +223,7 @@
 
                 renderer.render(scene, camera);
             }
+
             animate();
         }
 
